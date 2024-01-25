@@ -1,0 +1,18 @@
+[package]
+name = "blowfish-mbed-sys"
+version = "0.1.0"
+authors = ["The Mbed TLS project <mbed-tls@lists.trustedfirmware.org>", "Alex Sobolev <code.sobolev@gmail.com>"]
+description = "Lean bindings for the deprecated mbedtls implementation of Blowfish cipher."
+repository = "https://github.com/alexobolev/blowfish-mbed"
+license = "Apache-2.0 OR GPL-2.0-or-later"
+edition = "2021"
+categories = ["cryptography", "external-ffi-bindings", "no-std", "no-std::no-alloc"]
+keywords = ["bindings", "blowfish", "cryptography"]
+
+build = "build.rs"
+links = "mbed-blowfish"
+
+[build-dependencies]
+cc = { version = "1.0.83", features = ["parallel"] }
+
+[dependencies]

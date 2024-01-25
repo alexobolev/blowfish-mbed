@@ -1,0 +1,7 @@
+[package]
+name = "blowfish-mbed-c"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blowfish-mbed-sys = { path = "../blowfish-mbed-sys" }
