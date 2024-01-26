@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 blowfish-mbed-sys = { path = "../blowfish-mbed-sys" }
-thiserror = "1.0.56"
+snafu = { version = "0.8.0", default-features = false, features = ["rust_1_65"] }

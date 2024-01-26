@@ -1,17 +1,33 @@
 #![allow(dead_code)]
 #![allow(unsafe_code)]
+#![no_std]
 
-use std::cell::UnsafeCell;
-use std::ops::RangeInclusive;
+//! Lean and safe interface for Blowfish cipher from the `mbedtls` implementation.
+//!
+//! This crate provides a rusty wrapper around the `blowfish_mbed_sys` bindings to the Blowfish
+//! cipher implementation taken from an older branch of the `mbedtls` library. So far, only
+//! ECB, CBC and CFB block cipher modes of operation have been wrapped and tested.
+
+use core::cell::UnsafeCell;
+use core::ops::RangeInclusive;
+use core::ptr;
 
 use blowfish_mbed_sys::*;
-use thiserror::Error;
+use snafu::prelude::*;
 
 
-#[derive(Clone, Debug, Error)]
+/// Error type for all [`BlowfishContext`] operations.
+#[derive(Debug, Clone, Snafu)]
 pub enum BlowfishError {
-    #[error("error code unknown: {0}")]
-    Unknown(i32),
+    /// Input and output buffers had different lengths.
+    #[snafu(display("input / output length did not match: {input} != {output}"))]
+    LengthMismatch { input: usize, output: usize },
+    /// Input or output buffer had a length that was not a multiple of the block size.
+    #[snafu(display("input / output length was not a multiple of block size: {length}"))]
+    LengthNotMultiple { length: usize },
+    /// A FFI binding returned an error code even though all error conditions have been checked.
+    #[snafu(display("ffi binding returned an unexpected error code: {code}"))]
+    Unknown { code: i32 },
 }
 
 
@@ -89,12 +105,12 @@ const MODE_DECRYPT: i32 = MBEDTLS_BLOWFISH_DECRYPT as i32;
 const MODE_ENCRYPT: i32 = MBEDTLS_BLOWFISH_ENCRYPT as i32;
 
 #[inline(always)]
-fn for_each_block<const SIZE: usize, CB>(input: &[u8], output: &mut [u8], callback: CB)
+fn for_each_block<const SIZE: usize, CB>(input: &[u8], output: &mut [u8], callback: CB) -> Result<(), BlowfishError>
 where
-    CB: Fn(&[u8; SIZE], &mut [u8; SIZE]),
+    CB: Fn(&[u8; SIZE], &mut [u8; SIZE]) -> Result<(), BlowfishError>,
 {
-    assert_eq!(input.len(), output.len());
-    assert_eq!(input.len() % SIZE, 0);
+    ensure!(input.len() == output.len(), LengthMismatchSnafu { input: input.len(), output: output.len() });
+    ensure!(input.len() % SIZE == 0, LengthNotMultipleSnafu { length: input.len() });
 
     let (mut offset, length) = (0_usize, input.len());
     while offset < length {
@@ -104,11 +120,12 @@ where
             &mut *(output as *mut [u8] as *mut [u8; SIZE]),
         )};
 
-        callback(input_arr, output_arr);
+        callback(input_arr, output_arr)?;
         offset += SIZE;
     }
-
     debug_assert_eq!(offset, length);
+
+    Ok(())
 }
 
 
@@ -117,7 +134,7 @@ pub struct BlowfishContext(UnsafeCell<mbedtls_blowfish_context>);
 
 impl Clone for BlowfishContext {
     fn clone(&self) -> Self {
-        Self(UnsafeCell::new(unsafe { std::ptr::read(self.ctx_ptr()) }))
+        Self(UnsafeCell::new(unsafe { ptr::read(self.ctx_ptr()) }))
     }
 }
 
@@ -148,10 +165,9 @@ impl BlowfishContext {
     }
 
     /// Initializes a context and immediately updates the key.
-    pub fn with_key(v: &BlowfishKey) -> Self {
+    pub fn with_key(v: &BlowfishKey) -> Result<Self, BlowfishError> {
         let mut instance = Self::new();
-        instance.set_key(v);
-        instance
+        instance.set_key(v).map(|_| instance)
     }
 
     /// Reinitializes this context.
@@ -164,34 +180,32 @@ impl BlowfishContext {
     }
 
     /// Updates the key for this cipher context.
-    ///
-    /// # Panics
-    /// This function will panic if the raw binding returns an error.
-    /// It should not happen because all necessary validation for [`BlowfishKey`]
-    /// is done at key construction, but the check is still there in case we update
-    /// the implementation or get something wrong.
-    pub fn set_key(&mut self, v: &BlowfishKey) {
+    pub fn set_key(&mut self, v: &BlowfishKey) -> Result<(), BlowfishError> {
         let (data, bits) = (v.data(), v.bits());
-        let ret = unsafe { mbedtls_blowfish_setkey(self.ctx_ptr(), data, bits) };
-        assert_eq!(ret, 0);
+        let code = unsafe { mbedtls_blowfish_setkey(self.ctx_ptr(), data, bits) };
+        ensure!(code == 0, UnknownSnafu { code });
+        Ok(())
     }
 
     #[inline(always)]
-    fn crypt_ecb_internal(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE], mode: i32) {
-        debug_assert!(mode == MODE_ENCRYPT || mode == MODE_DECRYPT);
+    fn crypt_ecb_internal(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE], mode: i32) -> Result<(), BlowfishError> {
         let (input, output) = (input.as_ptr(), output.as_mut_ptr());
-        let ret = unsafe { mbedtls_blowfish_crypt_ecb(self.ctx_ptr(), mode, input, output) };
-        assert_eq!(ret, 0);
+
+        debug_assert!(mode == MODE_ENCRYPT || mode == MODE_DECRYPT);
+        let code = unsafe { mbedtls_blowfish_crypt_ecb(self.ctx_ptr(), mode, input, output) };
+        ensure!(code == 0, UnknownSnafu { code });
+
+        Ok(())
     }
 
     /// Decrypt a single block in the **electronic codebook** (ECB) mode.
-    pub fn decrypt_ecb(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE]) {
-        self.crypt_ecb_internal(input, output, MODE_DECRYPT);
+    pub fn decrypt_ecb(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE]) -> Result<(), BlowfishError> {
+        self.crypt_ecb_internal(input, output, MODE_DECRYPT)
     }
 
     /// Encrypt a single block in the **electronic codebook** (ECB) mode.
-    pub fn encrypt_ecb(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE]) {
-        self.crypt_ecb_internal(input, output, MODE_ENCRYPT);
+    pub fn encrypt_ecb(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE]) -> Result<(), BlowfishError> {
+        self.crypt_ecb_internal(input, output, MODE_ENCRYPT)
     }
 
     /// Decrypt a number of blocks in the **electronic codebook** (ECB) mode.
@@ -200,10 +214,10 @@ impl BlowfishContext {
     /// * `input` - Ciphertext bytes, must have a length that is a multiple of the cipher block size (8 bytes).
     /// * `output` - Pre-allocated buffer for cleartext bytes, must be exactly as long as `input`.
     ///
-    /// # Panics
-    /// This function will panic if `input` and `output` have different lengths, or if their length
-    /// is not a multiple of the cipher block size (8 bytes).
-    pub fn decrypt_ecb_slice(&self, input: &[u8], output: &mut [u8]) {
+    /// # Returns
+    /// This function will return an error if `input` and `output` have different lengths,
+    /// or if their length is not a multiple of the cipher block size (8 bytes).
+    pub fn decrypt_ecb_slice(&self, input: &[u8], output: &mut [u8]) -> Result<(), BlowfishError> {
         for_each_block(input, output, |i, o| self.decrypt_ecb(i, o))
     }
 
@@ -213,24 +227,26 @@ impl BlowfishContext {
     /// * `input` - Cleartext bytes, must have a length that is a multiple of the cipher block size (8 bytes).
     /// * `output` - Pre-allocated buffer for ciphertext bytes, must be exactly as long as `input`.
     ///
-    /// # Panics
-    /// This function will panic if `input` and `output` have different lengths, or if their length
-    /// is not a multiple of the cipher block size (8 bytes).
-    pub fn encrypt_ecb_slice(&self, input: &[u8], output: &mut [u8]) {
+    /// # Returns
+    /// This function will return an error if `input` and `output` have different lengths,
+    /// or if their length is not a multiple of the cipher block size (8 bytes).
+    pub fn encrypt_ecb_slice(&self, input: &[u8], output: &mut [u8]) -> Result<(), BlowfishError> {
         for_each_block(input, output, |i, o| self.encrypt_ecb(i, o))
     }
 
     #[inline(always)]
-    fn crypt_cbc_internal(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8], mode: i32) {
-        assert_eq!(input.len(), output.len());
-        assert_eq!(input.len() % BLOCK_SIZE, 0);
+    fn crypt_cbc_internal(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8], mode: i32) -> Result<(), BlowfishError> {
+        ensure!(input.len() == output.len(), LengthMismatchSnafu { input: input.len(), output: output.len() });
+        ensure!(input.len() % BLOCK_SIZE == 0, LengthNotMultipleSnafu { length: input.len() });
 
         let (length, iv) = (input.len(), iv.as_mut_ptr());
         let (input, output) = (input.as_ptr(), output.as_mut_ptr());
 
         debug_assert!(mode == MODE_ENCRYPT || mode == MODE_DECRYPT);
-        let ret = unsafe { mbedtls_blowfish_crypt_cbc(self.ctx_ptr(), mode, length, iv, input, output) };
-        assert_eq!(ret, 0);
+        let code = unsafe { mbedtls_blowfish_crypt_cbc(self.ctx_ptr(), mode, length, iv, input, output) };
+        ensure!(code == 0, UnknownSnafu { code });
+
+        Ok(())
     }
 
     /// Decrypt a number of blocks in the **cipher block chaining** (CBC) mode.
@@ -242,10 +258,10 @@ impl BlowfishContext {
     /// * `input` - Ciphertext bytes, must have a length that is a multiple of the cipher block size (8 bytes).
     /// * `output` - Pre-allocated buffer for cleartext bytes, must be exactly as long as `input`.
     ///
-    /// # Panics
-    /// This function will panic if `input` and `output` have different lengths, or if their length
-    /// is not a multiple of the cipher block size (8 bytes).
-    pub fn decrypt_cbc_slice(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8]) {
+    /// # Returns
+    /// This function will return an error if `input` and `output` have different lengths,
+    /// or if their length is not a multiple of the cipher block size (8 bytes).
+    pub fn decrypt_cbc_slice(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8]) -> Result<(), BlowfishError> {
         self.crypt_cbc_internal(iv, input, output, MODE_DECRYPT)
     }
 
@@ -258,10 +274,10 @@ impl BlowfishContext {
     /// * `input` - Cleartext bytes, must have a length that is a multiple of the cipher block size (8 bytes).
     /// * `output` - Pre-allocated buffer for ciphertext bytes, must be exactly as long as `input`.
     ///
-    /// # Panics
-    /// This function will panic if `input` and `output` have different lengths, or if their length
-    /// is not a multiple of the cipher block size (8 bytes).
-    pub fn encrypt_cbc_slice(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8]) {
+    /// # Returns
+    /// This function will return an error if `input` and `output` have different lengths,
+    /// or if their length is not a multiple of the cipher block size (8 bytes).
+    pub fn encrypt_cbc_slice(&self, iv: &mut [u8; BLOCK_SIZE], input: &[u8], output: &mut [u8]) -> Result<(), BlowfishError> {
         self.crypt_cbc_internal(iv, input, output, MODE_ENCRYPT)
     }
 }
