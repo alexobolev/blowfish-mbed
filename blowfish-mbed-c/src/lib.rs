@@ -7,6 +7,26 @@
 //! This crate provides a rusty wrapper around the `blowfish_mbed_sys` bindings to the Blowfish
 //! cipher implementation taken from an older branch of the `mbedtls` library. So far, only
 //! ECB, CBC and CFB block cipher modes of operation have been wrapped and tested.
+//!
+//! # Example
+//!
+//! ```
+//! use blowfish_mbed_c::*;
+//!
+//! let key = BlowfishKey::new(b"secret").unwrap();
+//! let context = BlowfishContext::with_key(&key).unwrap();
+//!
+//! // Notice that its length is a multiple of eight...
+//! const CLEARTEXT: [u8; 16] = *b"Hi there, world!";
+//!
+//! let mut ciphertext = [0u8; 16];
+//! context.encrypt_ecb_slice(&CLEARTEXT, &mut ciphertext).unwrap();
+//!
+//! let mut cleartext = [0u8; 16];
+//! context.decrypt_ecb_slice(&ciphertext, &mut cleartext).unwrap();
+//!
+//! assert_eq!(CLEARTEXT, cleartext);
+//! ```
 
 use core::cell::UnsafeCell;
 use core::ops::RangeInclusive;
@@ -116,8 +136,8 @@ where
     while offset < length {
         // SAFETY: We have either 0 or >= SIZE bytes remaining.
         let (input_arr, output_arr) = unsafe {(
-            &*(input as *const [u8] as *const [u8; SIZE]),
-            &mut *(output as *mut [u8] as *mut [u8; SIZE]),
+            &*(input.get_unchecked(offset .. offset + SIZE) as *const [u8] as *const [u8; SIZE]),
+            &mut *(output.get_unchecked_mut(offset .. offset + SIZE) as *mut [u8] as *mut [u8; SIZE]),
         )};
 
         callback(input_arr, output_arr)?;
