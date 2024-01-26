@@ -36,6 +36,21 @@ use blowfish_mbed_sys::*;
 use snafu::prelude::*;
 
 
+/// Number of bytes in a Blowfish cipher block.
+pub const BLOCK_SIZE: usize = MBEDTLS_BLOWFISH_BLOCKSIZE as usize;
+
+/// Lowest number of bytes in a valid Blowfish key.
+pub const KEY_BYTES_MIN: usize = MBEDTLS_BLOWFISH_MIN_KEY_BITS as usize / 8;
+/// Highest number of bytes in a valid Blowfish key.
+pub const KEY_BYTES_MAX: usize = MBEDTLS_BLOWFISH_MAX_KEY_BITS as usize / 8;
+
+
+const KEY_BYTES_RANGE: RangeInclusive<usize> = KEY_BYTES_MIN ..= KEY_BYTES_MAX;
+
+const MODE_DECRYPT: i32 = MBEDTLS_BLOWFISH_DECRYPT as i32;
+const MODE_ENCRYPT: i32 = MBEDTLS_BLOWFISH_ENCRYPT as i32;
+
+
 /// Error type for all [`BlowfishContext`] operations.
 #[derive(Debug, Clone, Snafu)]
 pub enum BlowfishError {
@@ -49,14 +64,6 @@ pub enum BlowfishError {
     #[snafu(display("ffi binding returned an unexpected error code: {code}"))]
     Unknown { code: i32 },
 }
-
-
-/// Lowest number of bytes in a valid Blowfish key.
-pub const KEY_BYTES_MIN: usize = MBEDTLS_BLOWFISH_MIN_KEY_BITS as usize / 8;
-/// Highest number of bytes in a valid Blowfish key.
-pub const KEY_BYTES_MAX: usize = MBEDTLS_BLOWFISH_MAX_KEY_BITS as usize / 8;
-
-const KEY_BYTES_RANGE: RangeInclusive<usize> = KEY_BYTES_MIN ..= KEY_BYTES_MAX;
 
 
 /// Type-safe variable-size Blowfish cipher key.
@@ -118,17 +125,12 @@ impl BlowfishKey {
 }
 
 
-/// Number of bytes in a Blowfish cipher block.
-pub const BLOCK_SIZE: usize = MBEDTLS_BLOWFISH_BLOCKSIZE as usize;
-
-const MODE_DECRYPT: i32 = MBEDTLS_BLOWFISH_DECRYPT as i32;
-const MODE_ENCRYPT: i32 = MBEDTLS_BLOWFISH_ENCRYPT as i32;
-
 #[inline(always)]
-fn for_each_block<const SIZE: usize, CB>(input: &[u8], output: &mut [u8], callback: CB) -> Result<(), BlowfishError>
-where
-    CB: Fn(&[u8; SIZE], &mut [u8; SIZE]) -> Result<(), BlowfishError>,
-{
+fn for_each_block<const SIZE: usize>(
+    input: &[u8],
+    output: &mut [u8],
+    callback: impl Fn(&[u8; SIZE], &mut [u8; SIZE]) -> Result<(), BlowfishError>,
+) -> Result<(), BlowfishError> {
     ensure!(input.len() == output.len(), LengthMismatchSnafu { input: input.len(), output: output.len() });
     ensure!(input.len() % SIZE == 0, LengthNotMultipleSnafu { length: input.len() });
 
