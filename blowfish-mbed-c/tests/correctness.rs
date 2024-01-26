@@ -29,6 +29,7 @@ macro_rules! check_ecb_dec {
 }
 
 
+/// Check that single-block **electronic codebook** vectors are correct for encryption.
 #[test]
 fn test_ecb_encrypt() {
     check_ecb_enc!("0000000000000000", "0000000000000000", "4EF997456198DD78");
@@ -44,6 +45,7 @@ fn test_ecb_encrypt() {
     // TODO: Add the remaining vectors.
 }
 
+/// Check that single-block **electronic codebook** vectors are correct for decryption.
 #[test]
 fn test_ecb_decrypt() {
     check_ecb_dec!("0000000000000000", "0000000000000000", "4EF997456198DD78");
@@ -59,6 +61,8 @@ fn test_ecb_decrypt() {
     // TODO: Add the remaining vectors.
 }
 
+/// Check that the multi-block **cipher block chaining** vector
+/// is correct for encryption in a single go.
 #[test]
 fn test_cbc_encrypt() {
     let key = BlowfishKey::new(&utils::str_to_vec("0123456789ABCDEFF0E1D2C3B4A59687")).unwrap();
@@ -73,6 +77,8 @@ fn test_cbc_encrypt() {
     assert_eq!(&ciphertext, ciphertext_exp.as_slice());
 }
 
+/// Check that the multi-block **cipher block chaining** vector
+/// is correct for decryption in a single go.
 #[test]
 fn test_cbc_decrypt() {
     let key = BlowfishKey::new(&utils::str_to_vec("0123456789ABCDEFF0E1D2C3B4A59687")).unwrap();
@@ -80,10 +86,37 @@ fn test_cbc_decrypt() {
 
     let ciphertext = utils::str_to_padded("6B77B4D63006DEE605B156E27403979358DEB9E7154616D959F1652BD5FF92CC");
     let cleartext_exp = utils::str_to_vec("37363534333231204E6F77206973207468652074696D6520666F722000");
-    let mut iv = utils::str_to_block("FEDCBA9876543210");
 
+    let mut iv = utils::str_to_block("FEDCBA9876543210");
     let mut cleartext = [0u8; 32];
+
     ctx.decrypt_cbc_slice(&mut iv, &ciphertext, &mut cleartext).unwrap();
+    assert_eq!(&cleartext[.. cleartext_exp.len()], cleartext_exp.as_slice());
+}
+
+/// Check that the multi-block **cipher block chaining** vector
+/// is correct for decryption with a "streaming" interface.
+#[test]
+fn test_cbc_decrypt_stream() {
+    let key = BlowfishKey::new(&utils::str_to_vec("0123456789ABCDEFF0E1D2C3B4A59687")).unwrap();
+    let ctx = BlowfishContext::with_key(&key).unwrap();
+
+    let ciphertext_parts = [
+        utils::str_to_padded("6B77B4D63006DEE6"),
+        utils::str_to_padded("05B156E27403979358DEB9E7154616D9"),
+        utils::str_to_padded("59F1652BD5FF92CC"),
+    ];
+    let cleartext_exp = utils::str_to_vec("37363534333231204E6F77206973207468652074696D6520666F722000");
+
+    let mut iv = utils::str_to_block("FEDCBA9876543210");
+    let mut cleartext = Vec::with_capacity(32);
+
+    for ciphertext_part in ciphertext_parts {
+        let mut cleartext_part = vec![0u8; ciphertext_part.len()];
+        ctx.decrypt_cbc_slice(&mut iv, &ciphertext_part, &mut cleartext_part).unwrap();
+        cleartext.append(&mut cleartext_part);
+    }
+
     assert_eq!(&cleartext[.. cleartext_exp.len()], cleartext_exp.as_slice());
 }
 
