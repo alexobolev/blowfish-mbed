@@ -20,6 +20,13 @@ The crates in this repository are:
 * `blowfish-mbed-sys` - direct bindings to *mbedtls*'s cipher implementation;
 * `blowfish-mbed-c` - idiomatic Rust interface over the C bindings above.
 
+## Backlog
+
+The `blowfish-mbed-c` crate only wraps ECB and CBC modes of operation yet.
+
+It would be a good idea to also provide a safe interface for the CFB and CTR modes
+for completeness' sake, since `mbedtls` already implements those.
+
 ## License
 
 The implementation found in this repository is lifted *almost* directly from the

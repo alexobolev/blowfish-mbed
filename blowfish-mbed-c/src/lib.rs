@@ -6,7 +6,7 @@
 //!
 //! This crate provides a rusty wrapper around the `blowfish_mbed_sys` bindings to the Blowfish
 //! cipher implementation taken from an older branch of the `mbedtls` library. So far, only
-//! ECB, CBC and CFB block cipher modes of operation have been wrapped and tested.
+//! ECB and CBC block cipher modes of operation have been wrapped and tested.
 //!
 //! # Example
 //!
