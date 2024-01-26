@@ -3,6 +3,7 @@ name = "blowfish-mbed-c"
 version = "0.1.0"
 authors = ["The Mbed TLS project <mbed-tls@lists.trustedfirmware.org>", "Alex Sobolev <code.sobolev@gmail.com>"]
 description = "Rusty interface for the deprecated mbedtls implementation of Blowfish cipher."
+readme = "../README.MD"
 repository = "https://github.com/alexobolev/blowfish-mbed"
 license = "Apache-2.0 OR GPL-2.0-or-later"
 edition = "2021"

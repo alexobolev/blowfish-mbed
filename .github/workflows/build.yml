@@ -12,6 +12,8 @@ on:
     branches:
       - main
       - devel
+env:
+  CARGO_TERM_COLOR: always
 jobs:
   build:
     name: ${{ matrix.os-name }} build
@@ -43,10 +45,13 @@ jobs:
           cargo fetch
       - name: Build debug
         run: |
-          cargo build
+          cargo build --verbose
       - name: Build release
         run: |
-          cargo build --release
+          cargo build --release --verbose
       - name: Run tests on debug
         run: |
-          cargo test
+          cargo test --verbose
+      - name: Run tests on release
+        run: |
+          cargo test --release --verbose
