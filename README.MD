@@ -7,6 +7,12 @@
 [gha-badge]: https://img.shields.io/github/actions/workflow/status/alexobolev/blowfish-mbed/build.yml
 [gha-link]: https://github.com/alexobolev/blowfish-mbed/actions/workflows/build.yml
 
+[crates-c-badge]: https://img.shields.io/crates/v/blowfish-mbed-c.svg?label=crates.io-c
+[crates-c-link]: https://crates.io/crates/blowfish-mbed-c
+
+[docs-c-badge]: https://img.shields.io/docsrs/blowfish-mbed-c?label=docs.rs-c
+[docs-c-link]: https://docs.rs/blowfish-mbed-c/latest/blowfish_mbed_c
+
 [crates-sys-badge]: https://img.shields.io/crates/v/blowfish-mbed-sys.svg?label=crates.io-sys
 [crates-sys-link]: https://crates.io/crates/blowfish-mbed-sys
 
@@ -20,7 +26,9 @@ blowfish-mbed
 [![Build status][gha-badge]][gha-link]
 [![License: Apache-2.0][apache-badge]][apache-link]
 [![License: GPLv2+][gpl-badge]][gpl-link]
+[![crates.io (c)][crates-c-badge]][crates-c-link]
 [![crates.io (sys)][crates-sys-badge]][crates-sys-link]
+[![docs.rs (c)][docs-c-badge]][docs-c-link]
 [![docs.rs (sys)][docs-sys-badge]][docs-sys-link]
 
 This repository provides two crates for encryption and decryption of data using
