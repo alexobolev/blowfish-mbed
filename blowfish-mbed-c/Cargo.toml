@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 blowfish-mbed-sys = { path = "../blowfish-mbed-sys" }
+thiserror = "1.0.56"

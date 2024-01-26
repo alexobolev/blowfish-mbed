@@ -12,3 +12,13 @@ impl fmt::Debug for mbedtls_blowfish_context {
         f.debug_struct("mbedtls_blowfish_context").finish_non_exhaustive()
     }
 }
+
+impl Default for mbedtls_blowfish_context {
+    fn default() -> Self {
+        let mut s = ::core::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::core::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
