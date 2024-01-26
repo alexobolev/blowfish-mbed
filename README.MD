@@ -4,12 +4,24 @@
 [gpl-badge]:https://img.shields.io/badge/license-GPLv2%2B-blue
 [gpl-link]: LICENSE-GPL
 
+[gha-badge]: https://img.shields.io/github/actions/workflow/status/alexobolev/blowfish-mbed/build.yml
+[gha-link]: https://github.com/alexobolev/blowfish-mbed/actions/workflows/build.yml
+
+[crates-sys-badge]: https://img.shields.io/crates/v/blowfish-mbed-sys.svg?label=crates.io-sys
+[crates-sys-link]: https://crates.io/crates/blowfish-mbed-sys
+
+[docs-sys-badge]: https://img.shields.io/docsrs/blowfish-mbed-sys?label=docs.rs-sys
+[docs-sys-link]: https://docs.rs/blowfish-mbed-sys/latest/blowfish_mbed_sys
+
 
 blowfish-mbed
 =============
 
+[![Build status][gha-badge]][gha-link]
 [![License: Apache-2.0][apache-badge]][apache-link]
 [![License: GPLv2+][gpl-badge]][gpl-link]
+[![crates.io (sys)][crates-sys-badge]][crates-sys-link]
+[![docs.rs (sys)][docs-sys-badge]][docs-sys-link]
 
 This repository provides two crates for encryption and decryption of data using
 the Blowfish cipher. While it is no longer recommended for usage in modern software,

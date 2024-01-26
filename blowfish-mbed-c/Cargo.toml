@@ -11,5 +11,5 @@ categories = ["api-bindings", "cryptography", "no-std"]
 keywords = ["bindings", "blowfish", "cryptography"]
 
 [dependencies]
-blowfish-mbed-sys = { path = "../blowfish-mbed-sys" }
+blowfish-mbed-sys = { version = "0.1.0", path = "../blowfish-mbed-sys" }
 snafu = { version = "0.8.0", default-features = false, features = ["rust_1_65"] }
