@@ -34,10 +34,10 @@ this cipher can still be found in legacy code.
 The crates in this repository are:
 
 * `blowfish-mbed-sys` - direct bindings to *mbedtls*'s cipher implementation;
-  [![crates.io (sys)][crates-sys-badge]][crates-sys-link] [![docs.rs (sys)][docs-sys-badge]][docs-sys-link]
+    * [![crates.io (sys)][crates-sys-badge]][crates-sys-link] [![docs.rs (sys)][docs-sys-badge]][docs-sys-link]
 
 * `blowfish-mbed-c` - idiomatic Rust interface over the C bindings above.
-  [![crates.io (c)][crates-c-badge]][crates-c-link] [![docs.rs (c)][docs-c-badge]][docs-c-link]
+    * [![crates.io (c)][crates-c-badge]][crates-c-link] [![docs.rs (c)][docs-c-badge]][docs-c-link]
 
 ## Backlog
 

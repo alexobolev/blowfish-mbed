@@ -150,6 +150,31 @@ fn for_each_block<const SIZE: usize>(
     Ok(())
 }
 
+#[inline(always)]
+fn for_each_inplace<const SIZE: usize>(
+    buffer: &mut [u8],
+    callback: impl Fn(&mut [u8; SIZE]) -> Result<(), BlowfishError>,
+) -> Result<(), BlowfishError> {
+    let length = buffer.len();
+    ensure!(length % SIZE == 0, LengthNotMultipleSnafu { length });
+
+    let mut offset = 0_usize;
+    while offset < length {
+        // SAFETY: We have either 0 or >= SIZE bytes remaining.
+        let io_array = unsafe {
+            let range = offset .. offset + SIZE;
+            let slice = buffer.get_unchecked_mut(range);
+            &mut *(slice as *mut [u8] as *mut [u8; SIZE])
+        };
+
+        callback(io_array)?;
+        offset += SIZE;
+    }
+    debug_assert_eq!(offset, length);
+
+    Ok(())
+}
+
 
 /// Blowfish cipher context for decrypting and/or encrypting data.
 pub struct BlowfishContext(UnsafeCell<mbedtls_blowfish_context>);
@@ -212,11 +237,18 @@ impl BlowfishContext {
     #[inline(always)]
     fn crypt_ecb_internal(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE], mode: i32) -> Result<(), BlowfishError> {
         let (input, output) = (input.as_ptr(), output.as_mut_ptr());
-
         debug_assert!(mode == MODE_ENCRYPT || mode == MODE_DECRYPT);
         let code = unsafe { mbedtls_blowfish_crypt_ecb(self.ctx_ptr(), mode, input, output) };
         ensure!(code == 0, UnknownSnafu { code });
+        Ok(())
+    }
 
+    #[inline(always)]
+    fn crypt_ecb_internal_inplace(&self, buffer: &mut [u8; BLOCK_SIZE], mode: i32) -> Result<(), BlowfishError> {
+        let (input, output) = (buffer.as_mut_ptr(), buffer.as_mut_ptr());
+        debug_assert!(mode == MODE_ENCRYPT || mode == MODE_DECRYPT);
+        let code = unsafe { mbedtls_blowfish_crypt_ecb(self.ctx_ptr(), mode, input, output) };
+        ensure!(code == 0, UnknownSnafu { code });
         Ok(())
     }
 
@@ -228,6 +260,16 @@ impl BlowfishContext {
     /// Encrypt a single block in the **electronic codebook** (ECB) mode.
     pub fn encrypt_ecb(&self, input: &[u8; BLOCK_SIZE], output: &mut [u8; BLOCK_SIZE]) -> Result<(), BlowfishError> {
         self.crypt_ecb_internal(input, output, MODE_ENCRYPT)
+    }
+
+    /// Decrypt a single block in the **electronic codebook** (ECB) mode, using same buffer as input and output.
+    pub fn decrypt_ecb_inplace(&self, buffer: &mut [u8; BLOCK_SIZE]) -> Result<(), BlowfishError> {
+        self.crypt_ecb_internal_inplace(buffer, MODE_DECRYPT)
+    }
+
+    /// Encrypt a single block in the **electronic codebook** (ECB) mode, using same buffer as input and output.
+    pub fn encrypt_ecb_inplace(&self, buffer: &mut [u8; BLOCK_SIZE]) -> Result<(), BlowfishError> {
+        self.crypt_ecb_internal_inplace(buffer, MODE_ENCRYPT)
     }
 
     /// Decrypt a number of blocks in the **electronic codebook** (ECB) mode.
@@ -243,6 +285,11 @@ impl BlowfishContext {
         for_each_block(input, output, |i, o| self.decrypt_ecb(i, o))
     }
 
+    /// Same as [`Self::decrypt_ecb_slice`] but decryption happens in-place.
+    pub fn decrypt_ecb_slice_inplace(&self, buffer: &mut [u8]) -> Result<(), BlowfishError> {
+        for_each_inplace(buffer, |io| self.decrypt_ecb_inplace(io))
+    }
+
     /// Encrypt a number of blocks in the **electronic codebook** (ECB) mode.
     ///
     /// # Arguments
@@ -254,6 +301,11 @@ impl BlowfishContext {
     /// or if their length is not a multiple of the cipher block size (8 bytes).
     pub fn encrypt_ecb_slice(&self, input: &[u8], output: &mut [u8]) -> Result<(), BlowfishError> {
         for_each_block(input, output, |i, o| self.encrypt_ecb(i, o))
+    }
+
+    /// Same as [`Self::encrypt_ecb_slice`] but encryption happens in-place.
+    pub fn encrypt_ecb_slice_inplace(&self, buffer: &mut [u8]) -> Result<(), BlowfishError> {
+        for_each_inplace(buffer, |io| self.encrypt_ecb_inplace(io))
     }
 
     #[inline(always)]
