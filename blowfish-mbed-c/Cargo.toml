@@ -1,6 +1,6 @@
 [package]
 name = "blowfish-mbed-c"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["The Mbed TLS project <mbed-tls@lists.trustedfirmware.org>", "Alex Sobolev <code.sobolev@gmail.com>"]
 description = "Rusty interface for the deprecated mbedtls implementation of Blowfish cipher."
 readme = "../README.MD"
@@ -11,5 +11,5 @@ categories = ["api-bindings", "cryptography", "no-std"]
 keywords = ["bindings", "blowfish", "cryptography"]
 
 [dependencies]
-blowfish-mbed-sys = { version = "0.1.0", path = "../blowfish-mbed-sys" }
+blowfish-mbed-sys = { version = "0.1.1", path = "../blowfish-mbed-sys" }
 snafu = { version = "0.8.0", default-features = false, features = ["rust_1_65"] }

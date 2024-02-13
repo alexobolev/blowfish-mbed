@@ -1,6 +1,6 @@
 [package]
 name = "blowfish-mbed-sys"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["The Mbed TLS project <mbed-tls@lists.trustedfirmware.org>", "Alex Sobolev <code.sobolev@gmail.com>"]
 description = "Lean bindings for the deprecated mbedtls implementation of Blowfish cipher."
 repository = "https://github.com/alexobolev/blowfish-mbed"
