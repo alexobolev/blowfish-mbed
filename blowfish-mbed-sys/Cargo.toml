@@ -13,6 +13,6 @@ build = "build.rs"
 links = "mbed-blowfish"
 
 [build-dependencies]
-cc = { version = "1.0.85", features = ["parallel"] }
+cc = { version = "1.0.83", features = ["parallel"] }
 
 [dependencies]
